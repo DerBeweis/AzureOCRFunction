@@ -4,7 +4,7 @@ import requests
 import time
 import json
 import cgi
-import io  # clearly added this import
+import io  
 
 subscription_key = 'BU9HKSgK9GI0G6svRx8bPqs0t4Ra7MnFkULlglz3jNK7aMUQOgMlJQQJ99BCACPV0roXJ3w3AAAFACOGbna6'
 endpoint = 'https://heinocr-vision.cognitiveservices.azure.com/'
@@ -14,7 +14,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
         content_type = req.headers.get('Content-Type')
         body = req.get_body()
-        fp = io.BytesIO(body)  # explicitly corrected here
+        fp = io.BytesIO(body)  
 
         env = {'REQUEST_METHOD': 'POST', 'CONTENT_TYPE': content_type}
         form = cgi.FieldStorage(fp=fp, environ=env)
