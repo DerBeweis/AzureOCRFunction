@@ -25,7 +25,7 @@ This is a serverless Azure Function that processes PDF files using Azure Compute
 - **Subscription Key**: Required
 - **Endpoint URL**: Required
 - **Pricing Tier**: Choose based on usage
-  - F0 (Free tier): 500 transactions per month
+  - F0 (Free tier): 5000 transactions per month
   - S0: Pay-per-transaction
   - S1: Higher throughput capacity
 
