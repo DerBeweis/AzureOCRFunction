@@ -1,0 +1,18 @@
+{
+  "scriptFile": "__init__.py",  // Point to the __init__.py file
+  "entryPoint": "main",         // The function name inside __init__.py to be called
+  "bindings": [
+    {
+      "authLevel": "function",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "req",
+      "route": "OcrPdfFunction"
+    },
+    {
+      "type": "http",
+      "direction": "out",
+      "name": "$return"
+    }
+  ]
+}
