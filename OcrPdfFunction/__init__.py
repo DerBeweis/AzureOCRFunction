@@ -84,6 +84,21 @@ def process_pdf_page(pdf_bytes, page_spec, subscription_key, endpoint):
         logging.error(f"OCR extraction failed for pages {page_spec}.")
         return None
 
+def get_pdf_page_count(pdf_bytes):
+    """
+    Safely determine the number of pages in a PDF.
+    Returns the page count or None if the PDF couldn't be parsed.
+    """
+    try:
+        pdf_file = io.BytesIO(pdf_bytes)
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        total_pages = len(pdf_reader.pages)
+        logging.info(f"Total pages in PDF (detected with PyPDF2): {total_pages}")
+        return total_pages
+    except Exception as e:
+        logging.error(f"Failed to determine PDF page count: {str(e)}")
+        return None
+
 def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
         # Get request parameters
@@ -122,45 +137,48 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             raise ValueError("Expected multipart/form-data content type")
 
         # Get the total number of pages in the PDF using PyPDF2
-        pdf_file = io.BytesIO(pdf_bytes)
-        pdf_reader = PyPDF2.PdfReader(pdf_file)
-        total_pages = len(pdf_reader.pages)
-        logging.info(f"Total pages in PDF (detected with PyPDF2): {total_pages}")
+        total_pages = get_pdf_page_count(pdf_bytes)
         
-        # Reset the file pointer to the beginning of the file
-        pdf_file.seek(0)
-        
-        all_results = []
-        
-        # Check if specific pages were requested
-        if pages_param:
-            # Use the specified pages parameter
-            result = process_pdf_page(pdf_bytes, pages_param, subscription_key, endpoint)
+        # If we couldn't determine the page count, default to processing the first page only
+        if total_pages is None:
+            logging.warning("Could not determine PDF page count. Defaulting to processing first page only.")
+            total_pages = 1  # Assume at least one page
+            all_results = []
+            result = process_pdf_page(pdf_bytes, "1", subscription_key, endpoint)
             if result:
                 all_results.extend(result)
         else:
-            # No specific pages requested, implement the first page + last two pages approach
-            if total_pages <= 2:
-                # If the PDF has 1 or 2 pages, process all pages in a single request
-                logging.info(f"PDF has only {total_pages} pages, processing all in one request")
-                pages_to_process = f"1-{total_pages}"
-                result = process_pdf_page(pdf_bytes, pages_to_process, subscription_key, endpoint)
+            all_results = []
+            
+            # Check if specific pages were requested
+            if pages_param:
+                # Use the specified pages parameter
+                result = process_pdf_page(pdf_bytes, pages_param, subscription_key, endpoint)
                 if result:
                     all_results.extend(result)
             else:
-                # Process the first page in one request
-                logging.info("Processing first page (page 1)")
-                first_page_result = process_pdf_page(pdf_bytes, "1", subscription_key, endpoint)
-                if first_page_result:
-                    all_results.extend(first_page_result)
-                
-                # Process the last two pages in another request
-                if total_pages >= 3:
-                    last_two_pages = f"{total_pages-1}-{total_pages}"
-                    logging.info(f"Processing last two pages (pages {last_two_pages})")
-                    last_pages_result = process_pdf_page(pdf_bytes, last_two_pages, subscription_key, endpoint)
-                    if last_pages_result:
-                        all_results.extend(last_pages_result)
+                # No specific pages requested, implement the first page + last two pages approach
+                if total_pages <= 2:
+                    # If the PDF has 1 or 2 pages, process all pages in a single request
+                    logging.info(f"PDF has only {total_pages} pages, processing all in one request")
+                    pages_to_process = f"1-{total_pages}"
+                    result = process_pdf_page(pdf_bytes, pages_to_process, subscription_key, endpoint)
+                    if result:
+                        all_results.extend(result)
+                else:
+                    # Process the first page in one request
+                    logging.info("Processing first page (page 1)")
+                    first_page_result = process_pdf_page(pdf_bytes, "1", subscription_key, endpoint)
+                    if first_page_result:
+                        all_results.extend(first_page_result)
+                    
+                    # Process the last two pages in another request
+                    if total_pages >= 3:
+                        last_two_pages = f"{total_pages-1}-{total_pages}"
+                        logging.info(f"Processing last two pages (pages {last_two_pages})")
+                        last_pages_result = process_pdf_page(pdf_bytes, last_two_pages, subscription_key, endpoint)
+                        if last_pages_result:
+                            all_results.extend(last_pages_result)
         
         if not all_results:
             logging.error("No results were obtained from any of the requests")
